@@ -27,8 +27,13 @@
         </wd-radio-group>
       </view>
 
-      <CodeScanner :paused="confirming" @detect="onDetect" />
-      <text class="demo">扫该还车点的地面二维码，确认后才会结束订单。演示编号 PK3N7Q。</text>
+      <CodeScanner class="scan-box" label="扫码还车" :paused="confirming" @detect="onDetect" />
+      <!-- #ifdef H5 -->
+      <text class="demo">对准地面二维码，扫到后需再确认一次。演示编号 PK3N7Q。</text>
+      <!-- #endif -->
+      <!-- #ifndef H5 -->
+      <text class="demo">点击扫码还车，打开微信扫一扫。演示编号 PK3N7Q。</text>
+      <!-- #endif -->
 
       <view class="panel">
         <wd-input v-model="code" placeholder="输入地面二维码编号" clearable @confirm="askReturn" />
@@ -205,6 +210,12 @@ onShow(() => {
   margin: 12rpx 0 8rpx;
   font-size: 28rpx;
   line-height: 1.5;
+}
+
+.scan-box {
+  display: block;
+  width: 100%;
+  margin-top: 20rpx;
 }
 
 .demo {

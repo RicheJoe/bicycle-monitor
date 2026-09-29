@@ -1,7 +1,16 @@
 <template>
   <view class="page">
-    <CodeScanner :paused="confirming" @detect="onDetect" />
+    <!-- #ifdef H5 -->
+    <CodeScanner class="scan-box" :paused="confirming" @detect="onDetect" />
     <text class="hint">扫到车身二维码后，需要再确认一次才会开锁</text>
+    <!-- #endif -->
+    <!-- #ifndef H5 -->
+    <view class="mp-lead">
+      <text class="hint">扫码用车</text>
+      <text class="demo">点击按钮打开微信扫一扫，识别后再确认开锁</text>
+    </view>
+    <CodeScanner class="scan-box" label="扫码用车" :paused="confirming" @detect="onDetect" />
+    <!-- #endif -->
     <text class="demo">演示车辆 {{ demoCodes }}，也可手动输入编号</text>
 
     <view class="panel">
@@ -15,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { nextTick, ref } from "vue"
 import { onLoad, onShow } from "@dcloudio/uni-app"
 import { useMessage, useToast } from "wot-design-uni"
 import { bikeSpots } from "../../data/places"
@@ -30,13 +39,20 @@ const box = useMessage()
 const code = ref("")
 const confirming = ref(false)
 const demoCodes = bikeSpots.map((bike) => bike.code).join("、")
+let autoUnlock = false
 
 onLoad((query) => {
-  if (query?.code) code.value = String(query.code)
+  if (query?.code) code.value = decodeURIComponent(String(query.code))
+  autoUnlock = query?.auto === "1" && Boolean(code.value)
 })
 
 onShow(() => {
   if (!placesReady()) void locateHighAccuracy()
+  if (!autoUnlock) return
+  autoUnlock = false
+  nextTick(() => {
+    void askUnlock()
+  })
 })
 
 function onDetect(text: string) {
@@ -88,6 +104,22 @@ async function askUnlock() {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.scan-box {
+  display: block;
+  width: 100%;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.mp-lead {
+  width: 100%;
+  margin-bottom: 36rpx;
+}
+
+.mp-lead .hint {
+  margin-top: 0;
 }
 
 .hint {

@@ -90,7 +90,8 @@
             </view>
           </view>
         </scroll-view>
-        <wd-button block size="large" custom-style="margin-top: 20rpx" @click="goScan()">扫码开锁</wd-button>
+        <RideScanButton label="扫码用车" @click="scanToRide" />
+        <text class="manual" @click="goScan()">输入编号开锁</text>
       </template>
     </view>
   </view>
@@ -108,6 +109,10 @@ import { bikeMarkerHtml } from "../../icons/marker"
 import { locateHighAccuracy } from "../../utils/locate"
 import { isH5 } from "../../utils/platform"
 import AppIcon from "../../components/AppIcon.vue"
+import RideScanButton from "../../components/RideScanButton.vue"
+// #ifndef H5
+import { scanQr } from "../../utils/scan"
+// #endif
 
 const statusBar = ref(0)
 const capsuleRight = ref("24rpx")
@@ -432,8 +437,31 @@ function goProfile() {
 }
 
 function goScan(code?: string) {
-  const query = code ? `?code=${code}` : ""
+  const query = code ? `?code=${encodeURIComponent(code)}` : ""
   uni.navigateTo({ url: `/pages/scan/index${query}` })
+}
+
+async function scanToRide() {
+  if (session.ride) {
+    uni.navigateTo({ url: "/pages/riding/index" })
+    return
+  }
+  if (isH5()) {
+    goScan()
+    return
+  }
+  // #ifndef H5
+  try {
+    const text = await scanQr()
+    uni.navigateTo({
+      url: `/pages/scan/index?code=${encodeURIComponent(text)}&auto=1`,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : ""
+    if (!message || message === "cancel" || message === "empty") return
+    uni.showToast({ title: "扫码失败，请重试", icon: "none" })
+  }
+  // #endif
 }
 
 function goRiding() {
@@ -677,6 +705,7 @@ onUnmounted(() => {
 
 .bike-scroll {
   margin-top: 16rpx;
+  margin-bottom: 24rpx;
   white-space: nowrap;
   width: 100%;
 }
@@ -723,7 +752,15 @@ onUnmounted(() => {
 }
 
 .empty-bikes {
-  margin-top: 16rpx;
+  margin: 16rpx 0 24rpx;
+}
+
+.manual {
+  display: block;
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #5d6b64;
 }
 
 .ride-row {

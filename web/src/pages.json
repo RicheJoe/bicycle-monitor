@@ -19,7 +19,10 @@
       "style": {
         "navigationBarTitleText": "扫码开锁",
         "navigationBarBackgroundColor": "#00A870",
-        "navigationBarTextStyle": "white"
+        "navigationBarTextStyle": "white",
+        "mp-weixin": {
+          "navigationBarTitleText": "扫码用车"
+        }
       }
     },
     {
