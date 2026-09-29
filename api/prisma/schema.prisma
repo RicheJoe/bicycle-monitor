@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BikeStatus {
+  idle
+  reserved
+  riding
+  maintenance
+}
+
+enum LockState {
+  locked
+  unlocked
+  unknown
+}
+
+enum RideStatus {
+  unlocking
+  riding
+  locking
+  finished
+  cancelled
+}
+
+enum CommandAction {
+  unlock
+  lock
+}
+
+enum CommandStatus {
+  pending
+  acked
+  timeout
+}
+
+enum AttemptResult {
+  accepted
+  rejected
+}
+
+enum PointSource {
+  user
+  device
+}
+
+model User {
+  id        String   @id @default(cuid())
+  openid    String?  @unique
+  nickname  String
+  phone     String?
+  createdAt DateTime @default(now())
+  rides     Ride[]
+}
+
+model Bike {
+  id         String     @id
+  bodyCode   String     @unique
+  status     BikeStatus @default(idle)
+  lockState  LockState  @default(unknown)
+  latitude   Decimal?   @db.Decimal(9, 6)
+  longitude  Decimal?   @db.Decimal(9, 6)
+  accuracy   Float?
+  battery    Int?
+  locationAt DateTime?
+  lastSeenAt DateTime?
+  updatedAt  DateTime   @updatedAt
+  rides      Ride[]
+}
+
+model ParkingPoint {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  latitude  Decimal  @db.Decimal(9, 6)
+  longitude Decimal  @db.Decimal(9, 6)
+  radius    Int
+  enabled   Boolean  @default(true)
+  capacity  Int?
+  rides     Ride[]
+}
+
+model Ride {
+  id             String         @id
+  userId         String
+  bikeId         String
+  status         RideStatus
+  startedAt      DateTime?
+  endedAt        DateTime?
+  parkingPointId String?
+  feeCents       Int?
+  distanceMeters Int?
+  track          Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  user           User           @relation(fields: [userId], references: [id])
+  bike           Bike           @relation(fields: [bikeId], references: [id])
+  parkingPoint   ParkingPoint?  @relation(fields: [parkingPointId], references: [id])
+  commands       DeviceCommand[]
+  attempts       ReturnAttempt[]
+  points         RidePoint[]
+}
+
+model DeviceCommand {
+  id        String         @id
+  rideId    String
+  bikeId    String
+  action    CommandAction
+  status    CommandStatus  @default(pending)
+  sentAt    DateTime       @default(now())
+  ackedAt   DateTime?
+  ride      Ride           @relation(fields: [rideId], references: [id])
+}
+
+model ReturnAttempt {
+  id         String         @id @default(cuid())
+  rideId     String
+  code       String
+  latitude   Decimal        @db.Decimal(9, 6)
+  longitude  Decimal        @db.Decimal(9, 6)
+  accuracy   Float
+  locatedAt  DateTime
+  result     AttemptResult
+  reason     String?
+  createdAt  DateTime       @default(now())
+  ride       Ride           @relation(fields: [rideId], references: [id])
+}
+
+model RidePoint {
+  id         String      @id @default(cuid())
+  rideId     String
+  latitude   Decimal     @db.Decimal(9, 6)
+  longitude  Decimal     @db.Decimal(9, 6)
+  accuracy   Float?
+  source     PointSource
+  recordedAt DateTime
+  createdAt  DateTime    @default(now())
+  ride       Ride        @relation(fields: [rideId], references: [id])
+
+  @@index([rideId, recordedAt])
+}
+
+model Outbox {
+  id          String    @id @default(cuid())
+  routingKey  String
+  payload     Json
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
