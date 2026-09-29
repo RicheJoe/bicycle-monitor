@@ -56,6 +56,9 @@ export const config = {
   httpPort: integer("HTTP_PORT", 3000),
   internalPort: integer("INTERNAL_PORT", 3001),
   emqxApiUrl: process.env.EMQX_API_URL || "",
+  emqxWebhookUrl:
+    process.env.EMQX_WEBHOOK_URL ||
+    `http://host.docker.internal:${integer("INTERNAL_PORT", 3001)}/internal/mqtt`,
   emqxDashboardUser: process.env.EMQX_DASHBOARD__DEFAULT_USERNAME || "",
   emqxDashboardPassword: process.env.EMQX_DASHBOARD__DEFAULT_PASSWORD || "",
 }

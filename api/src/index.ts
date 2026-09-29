@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process"
+import { existsSync } from "node:fs"
+import { resolve } from "node:path"
 import { promisify } from "node:util"
 import { createServer } from "node:http"
 import { config } from "./config.js"
@@ -16,7 +18,12 @@ const exec = promisify(execFile)
 
 async function seedIfNeeded() {
   if (process.env.SEED !== "1") return
-  await exec("npx", ["prisma", "db", "seed"], { cwd: process.cwd() })
+  const compiled = resolve(process.cwd(), "dist/prisma/seed.js")
+  if (existsSync(compiled)) {
+    await exec(process.execPath, [compiled], { cwd: process.cwd() })
+    return
+  }
+  await exec("npx", ["tsx", "prisma/seed.ts"], { cwd: process.cwd() })
 }
 
 function wireUplink() {
@@ -45,8 +52,8 @@ async function main() {
 
   const internal = createServer(createInternalApp())
   const publicServer = createServer(createPublicApp())
-  await new Promise<void>((resolve) => internal.listen(config.internalPort, resolve))
-  await new Promise<void>((resolve) => publicServer.listen(config.httpPort, resolve))
+  await new Promise<void>((resolve) => internal.listen(config.internalPort, "0.0.0.0", resolve))
+  await new Promise<void>((resolve) => publicServer.listen(config.httpPort, "0.0.0.0", resolve))
 
   const ruled = await setupEmqxRule().catch(() => false)
   await connectMqtt(!ruled)

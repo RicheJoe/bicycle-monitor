@@ -59,6 +59,46 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  api:
+    build:
+      context: ./api
+    image: bicycle-monitor-api
+    env_file:
+      - ./api/.env
+    environment:
+      SEED: "1"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  lock-sim:
+    build:
+      context: ./api
+    image: bicycle-monitor-api
+    profiles: ["sim"]
+    env_file:
+      - ./api/.env
+    command: ["node", "dist/src/simulator/lock.js"]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pg-data:
   redis-data:

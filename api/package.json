@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
     "simulate": "tsx src/simulator/lock.ts",
     "test": "tsx --test src/domain/rules.test.ts",
     "prisma:generate": "prisma generate",

@@ -9,8 +9,8 @@
 | 部分 | 状态 |
 | --- | --- |
 | 微信小程序 / H5 页面 | 可运行。开锁、还车、附近车辆和订单请求 api |
-| HTTP 接口 | 可运行。登录、附近查询、开锁、还车、行程点和轨迹 |
-| PostgreSQL、Redis、RabbitMQ、EMQX | 由 Docker Compose 启动 |
+| HTTP 接口 | 可运行。随 Docker Compose 启动，登录、附近查询、开锁、还车、行程点和轨迹 |
+| PostgreSQL、Redis、RabbitMQ、EMQX、api | 由 Docker Compose 启动 |
 
 ## 目录
 
@@ -21,7 +21,8 @@ docs/技术方案.md       业务规则和技术选型
 docs/后端技术方案.md   表结构、接口和消息
 docs/前端说明.md       页面、平台差异和本地运行
 docs/qr/              演示用车身码、地面码图片
-docker-compose.yml    PostgreSQL、Redis、RabbitMQ、EMQX
+api/Dockerfile        api 镜像
+docker-compose.yml    PostgreSQL、Redis、RabbitMQ、EMQX、api
 ```
 
 ## 客户端
@@ -42,32 +43,21 @@ npm run build:mp-weixin
 
 ## 数据库
 
-需要 Docker。复制 `.env.example` 为 `api/.env`，填入口令，并让 `DATABASE_URL` 使用同一口令。`api/.env` 不提交。
+需要 Docker。复制 `.env.example` 为 `api/.env`，填入口令，并让 `DATABASE_URL` 使用同一口令。`api/.env` 不提交。地址写成 `localhost` 即可，`api` 容器启动时会改成 Compose 服务名。
 
 ```bash
-docker compose up -d
-cd api
-npm install
-npx prisma migrate deploy
-npx prisma db seed
+docker compose up -d --build
 ```
 
-种子按 `api/.env` 里的 `SEED_ANCHOR_LAT`、`SEED_ANCHOR_LNG`（GCJ-02）放置车辆和停车点，编号与前端演示数据一致。重复执行不会多插开发用户；骑行中的车辆不会被改回空闲。
+`api` 容器启动时执行 `prisma migrate deploy`。Compose 里 `SEED=1`，会按 `api/.env` 的 `SEED_ANCHOR_LAT`、`SEED_ANCHOR_LNG`（GCJ-02）放置车辆和停车点，编号与前端演示数据一致。重复执行不会多插开发用户；骑行中的车辆不会被改回空闲。
 
-改表结构时在 `api/` 执行 `npx prisma migrate dev`。
+改表结构时在 `api/` 执行 `npx prisma migrate dev`。中间件端口仍映射到本机。
 
 ## 接口
 
-先启动中间件，再在 `api/` 启动服务和车锁模拟器：
-
 ```bash
-docker compose up -d
-cd api
-npm install
-npx prisma migrate deploy
-npx prisma db seed
-npm run dev
-npm run simulate
+docker compose up -d --build
+docker compose --profile sim up -d
 ```
 
-`npm run dev` 监听 `3000`，内网回调在 `3001`。H5 调试登录用 `POST /auth/dev`。演示开锁编号 `BK8K2M`，还车点 `PK3N7Q`。字段和错误码见 [docs/后端技术方案.md](docs/后端技术方案.md)。
+`api` 对外端口是 `3000`，内网回调 `3001` 只在 Compose 网络里。车锁模拟器在 profile `sim`，不进默认编排。H5 调试登录用 `POST /auth/dev`。演示开锁编号 `BK8K2M`，还车点 `PK3N7Q`。字段和错误码见 [docs/后端技术方案.md](docs/后端技术方案.md)。

@@ -12,22 +12,32 @@ export async function setupEmqxRule() {
   const token = (await login.json()) as { token?: string }
   if (!token.token) return false
   const headers = { authorization: `Bearer ${token.token}`, "content-type": "application/json" }
+  const connector = "bike_api"
+  const connectorFields = {
+    url: config.emqxWebhookUrl,
+    headers: { "X-Webhook-Secret": config.webhookSecret },
+    connect_timeout: "5s",
+    pool_size: 4,
+    enable: true,
+  }
+  const updated = await fetch(`${config.emqxApiUrl}/api/v5/connectors/http:${connector}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(connectorFields),
+  })
+  if (updated.status === 404) {
+    const created = await fetch(`${config.emqxApiUrl}/api/v5/connectors`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ type: "http", name: connector, ...connectorFields }),
+    })
+    if (!created.ok && created.status !== 409) return false
+  } else if (!updated.ok) {
+    console.error(`emqx connector update failed: ${updated.status}`)
+    return false
+  }
   const existing = await fetch(`${config.emqxApiUrl}/api/v5/rules/bike_uplink`, { headers })
   if (existing.ok) return true
-  const connector = "bike_api"
-  await fetch(`${config.emqxApiUrl}/api/v5/connectors`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      type: "http",
-      name: connector,
-      url: `http://host.docker.internal:${config.internalPort}/internal/mqtt`,
-      headers: { "X-Webhook-Secret": config.webhookSecret },
-      connect_timeout: "5s",
-      pool_size: 4,
-      enable: true,
-    }),
-  })
   await fetch(`${config.emqxApiUrl}/api/v5/actions`, {
     method: "POST",
     headers,
