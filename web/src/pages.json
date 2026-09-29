@@ -1,0 +1,64 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^wd-(.*)": "wot-design-uni/components/wd-$1/wd-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/map/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "附近车辆",
+        "disableScroll": true
+      }
+    },
+    {
+      "path": "pages/scan/index",
+      "style": {
+        "navigationBarTitleText": "扫码开锁",
+        "navigationBarBackgroundColor": "#00A870",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/riding/index",
+      "style": {
+        "navigationBarTitleText": "骑行中",
+        "navigationBarBackgroundColor": "#00A870",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/return/index",
+      "style": {
+        "navigationBarTitleText": "扫码还车",
+        "navigationBarBackgroundColor": "#00A870",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "个人信息",
+        "navigationBarBackgroundColor": "#00A870",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/orders/index",
+      "style": {
+        "navigationBarTitleText": "我的订单",
+        "navigationBarBackgroundColor": "#FFFFFF",
+        "navigationBarTextStyle": "black"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "单车骑行",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F3F5F7"
+  }
+}
