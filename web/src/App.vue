@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onLaunch } from "@dcloudio/uni-app"
-import { hydrateRide } from "./store/session"
+import { ensureSession } from "./store/session"
 
 onLaunch(() => {
-  hydrateRide()
+  void ensureSession()
 })
 </script>
 

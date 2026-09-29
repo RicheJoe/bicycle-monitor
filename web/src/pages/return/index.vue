@@ -59,13 +59,14 @@
 import { computed, ref } from "vue"
 import { onShow } from "@dcloudio/uni-app"
 import { useMessage, useToast } from "wot-design-uni"
-import { ACCURACY_LIMIT_M, ZONE_BUFFER_M } from "../../data/mock"
-import { findParking, listParking, placesReady } from "../../data/nearby"
-import { clearRide, demoFix, recordOrder, session, type LocateMode } from "../../store/session"
+import { ZONE_BUFFER_M } from "../../data/mock"
+import { findParking, listParking, placesReady, refreshNearby } from "../../data/nearby"
+import { clearRide, demoFix, refreshAccount, session, type LocateMode } from "../../store/session"
 import { distanceMeters } from "../../utils/geo"
 import { locateHighAccuracy } from "../../utils/locate"
 import { parseCode } from "../../utils/qr"
 import { estimateFee, formatDuration, formatYuan } from "../../utils/fee"
+import { ApiError, returnRide } from "../../utils/api"
 import CodeScanner from "../../components/CodeScanner.vue"
 
 useToast()
@@ -123,55 +124,45 @@ async function askReturn() {
     message.value = "没有进行中的订单"
     return
   }
-  if (!placesReady()) {
-    message.value = "正在定位，请稍候"
+  if (locateMode.value !== "gps" && !placesReady()) {
+    message.value = "正在获取还车点，请稍候"
     return
   }
   const pointCode = parseCode(code.value, "p")
   const spot = pointCode ? findParking(pointCode) : undefined
-  if (!spot || !spot.enabled) {
-    message.value = "二维码无效"
-    return
-  }
   if (locateMode.value === "gps" && !session.gps) {
     message.value = session.locateError || "正在定位，请稍候"
     void locateHighAccuracy()
-    return
-  }
-  if (fix.value.accuracy > ACCURACY_LIMIT_M) {
-    message.value = "定位不准，请到空旷处重试"
-    return
-  }
-  if (distanceMeters(fix.value, spot) > spot.radius + ZONE_BUFFER_M) {
-    message.value = "不在还车区域"
     return
   }
   confirming.value = true
   try {
     const fee = formatYuan(estimateFee(session.ride.startedAt))
     const duration = formatDuration(session.ride.startedAt)
+    const place = spot?.name || pointCode || "还车点"
     await box.confirm({
       title: "确认还车",
-      msg: `车辆 ${session.ride.bikeCode} 将在${spot.name}还车。已骑行 ${duration}，预计费用 ¥${fee}。`,
+      msg: `车辆 ${session.ride.bikeCode} 将在${place}还车。已骑行 ${duration}，预计费用 ¥${fee}。`,
       confirmButtonText: "确认还车",
     })
     if (!session.ride) return
-    result.value = {
-      spotName: spot.name,
-      duration: formatDuration(session.ride.startedAt),
-      fee: formatYuan(estimateFee(session.ride.startedAt)),
-    }
-    recordOrder({
-      id: session.ride.id,
-      bikeCode: session.ride.bikeCode,
-      startedAt: session.ride.startedAt,
-      endedAt: Date.now(),
-      fee: estimateFee(session.ride.startedAt),
-      parkingName: spot.name,
+    const here = fix.value
+    const done = await returnRide(session.ride.id, {
+      code: code.value.trim(),
+      latitude: here.latitude,
+      longitude: here.longitude,
+      accuracy: here.accuracy,
+      locatedAt: Date.now(),
     })
+    result.value = {
+      spotName: done.spotName,
+      duration: done.duration,
+      fee: done.fee.toFixed(2),
+    }
     clearRide()
-  } catch {
-    /* 取消确认 */
+    void refreshAccount()
+  } catch (error) {
+    if (error instanceof ApiError) message.value = error.message
   } finally {
     confirming.value = false
   }
@@ -183,6 +174,7 @@ function finish() {
 
 onShow(() => {
   if (locateMode.value === "gps") void locateHighAccuracy()
+  else if (session.gps) void refreshNearby(session.gps)
 })
 </script>
 

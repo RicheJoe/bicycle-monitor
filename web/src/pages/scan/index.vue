@@ -28,9 +28,10 @@ import { nextTick, ref } from "vue"
 import { onLoad, onShow } from "@dcloudio/uni-app"
 import { useMessage, useToast } from "wot-design-uni"
 import { bikeSpots } from "../../data/places"
-import { findBike, placesReady } from "../../data/nearby"
-import { session, startRide } from "../../store/session"
+import { findBike } from "../../data/nearby"
+import { session, setRide } from "../../store/session"
 import { locateHighAccuracy } from "../../utils/locate"
+import { ApiError, createRide } from "../../utils/api"
 import { parseCode } from "../../utils/qr"
 import CodeScanner from "../../components/CodeScanner.vue"
 
@@ -47,7 +48,7 @@ onLoad((query) => {
 })
 
 onShow(() => {
-  if (!placesReady()) void locateHighAccuracy()
+  void locateHighAccuracy()
   if (!autoUnlock) return
   autoUnlock = false
   nextTick(() => {
@@ -71,27 +72,29 @@ async function askUnlock() {
     toast.show("请扫描车身二维码")
     return
   }
-  if (!placesReady()) {
-    toast.show("正在定位，请稍候")
-    return
-  }
   const bike = findBike(bikeCode)
-  if (!bike) {
-    toast.show("车辆不存在或正在使用")
-    return
-  }
   confirming.value = true
   try {
     await box.confirm({
       title: "确认开锁",
-      msg: `即将解锁车辆 ${bike.code}，电量 ${bike.battery}%。请确认是这辆车。`,
+      msg: bike
+        ? `即将解锁车辆 ${bike.code}，电量 ${bike.battery}%。请确认是这辆车。`
+        : `即将解锁车辆 ${bikeCode}。请确认是这辆车。`,
       confirmButtonText: "确认开锁",
     })
-    startRide(bike.code)
+    uni.showLoading({ title: "正在开锁", mask: true })
+    const result = await createRide(code.value.trim())
+    if (!result.ride.startedAt) throw new ApiError("LOCK_TIMEOUT", "锁没有响应，请重试")
+    setRide({
+      id: result.ride.id,
+      bikeCode: result.ride.bikeCode,
+      startedAt: result.ride.startedAt,
+    })
     uni.redirectTo({ url: "/pages/riding/index" })
-  } catch {
-    /* 取消确认 */
+  } catch (error) {
+    if (error instanceof ApiError) toast.show(error.message)
   } finally {
+    uni.hideLoading()
     confirming.value = false
   }
 }

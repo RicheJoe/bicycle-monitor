@@ -1,5 +1,5 @@
 import { applyGps, session, type Fix } from "../store/session"
-import { lockOrigin } from "../data/nearby"
+import { refreshNearby } from "../data/nearby"
 import { isH5 } from "./platform"
 import { wgs84ToGcj02 } from "./gcj"
 
@@ -45,7 +45,7 @@ function locateByUni(seq: number, interactive: boolean) {
           longitude: res.longitude,
           accuracy: res.accuracy || 0,
         })
-        if (session.gps) lockOrigin(session.gps)
+        if (session.gps) void refreshNearby(session.gps)
         resolve()
       },
       fail(err) {
@@ -98,7 +98,7 @@ function locateByBrowser(seq: number) {
       }
       if (seq === requestSeq) {
         applyGps(toGcj(best))
-        if (session.gps) lockOrigin(session.gps)
+        if (session.gps) void refreshNearby(session.gps)
       }
       resolve()
     }

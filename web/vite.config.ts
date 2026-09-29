@@ -45,5 +45,12 @@ export default defineConfig({
     host: true,
     port: 5173,
     https: devHttps(),
+    proxy: {
+      "/bike-api": {
+        target: "http://127.0.0.1:3000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/bike-api/, ""),
+      },
+    },
   },
 })

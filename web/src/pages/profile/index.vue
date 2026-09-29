@@ -5,8 +5,8 @@
         <AppIcon name="account" :size="36" color="#00a870" />
       </view>
       <view class="who">
-        <text class="name">{{ profile.name }}</text>
-        <text class="phone">{{ profile.phone }}</text>
+        <text class="name">{{ session.nickname }}</text>
+        <text class="phone">{{ phoneText }}</text>
       </view>
     </view>
 
@@ -33,7 +33,6 @@
 
 <script setup lang="ts">
 import AppIcon from "../../components/AppIcon.vue"
-import { profile } from "../../data/profile"
 import { session } from "../../store/session"
 import { computed } from "vue"
 
@@ -42,6 +41,7 @@ const ridingText = computed(() => (session.ride ? "骑行中" : "无"))
 const totalFee = computed(() =>
   session.orders.reduce((sum, order) => sum + order.fee, 0).toFixed(2)
 )
+const phoneText = computed(() => session.phone || "未绑定手机")
 
 function goOrders() {
   uni.navigateTo({ url: "/pages/orders/index" })

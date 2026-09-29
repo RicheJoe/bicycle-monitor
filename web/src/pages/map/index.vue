@@ -72,7 +72,7 @@
           />
         </view>
         <view v-else-if="availableBikes.length === 0" class="empty-bikes">
-          <wd-status-tip image="search" tip="附近暂无可用车辆" />
+          <wd-status-tip image="search" :tip="nearbyError() || '附近暂无可用车辆'" />
         </view>
         <scroll-view v-else class="bike-scroll" scroll-x>
           <view
@@ -100,7 +100,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import { onHide, onShow } from "@dcloudio/uni-app"
-import { listBikes, listParking, placesKey, placesReady } from "../../data/nearby"
+import { listBikes, listParking, nearbyError, placesKey, placesReady } from "../../data/nearby"
 import { session, currentFix } from "../../store/session"
 import { distanceMeters } from "../../utils/geo"
 import { estimateFee, formatDuration, formatYuan } from "../../utils/fee"

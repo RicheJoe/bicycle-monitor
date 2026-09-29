@@ -25,7 +25,8 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from "vue"
 import { onHide, onShow } from "@dcloudio/uni-app"
-import { session } from "../../store/session"
+import { session, currentFix } from "../../store/session"
+import { reportPoint } from "../../utils/api"
 import { estimateFee, formatDuration, formatYuan } from "../../utils/fee"
 
 const now = ref(Date.now())
@@ -46,11 +47,30 @@ function goMap() {
   uni.reLaunch({ url: "/pages/map/index" })
 }
 
+function report() {
+  const ride = session.ride
+  const fix = currentFix()
+  if (!ride || !fix.latitude || !fix.longitude || fix.accuracy > 80) return
+  void reportPoint(ride.id, {
+    latitude: fix.latitude,
+    longitude: fix.longitude,
+    accuracy: fix.accuracy,
+    locatedAt: Date.now(),
+  }).catch(() => {
+    /* 定位上报失败不打断骑行 */
+  })
+}
+
+let ticks = 0
 onShow(() => {
   now.value = Date.now()
   clearInterval(timer)
+  ticks = 0
+  report()
   timer = setInterval(() => {
     now.value = Date.now()
+    ticks += 1
+    if (ticks % 15 === 0) report()
   }, 1000) as unknown as number
 })
 

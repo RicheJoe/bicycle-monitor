@@ -30,7 +30,8 @@
 </template>
 
 <script setup lang="ts">
-import { session } from "../../store/session"
+import { onShow } from "@dcloudio/uni-app"
+import { refreshAccount, session } from "../../store/session"
 
 function formatClock(timestamp: number) {
   const date = new Date(timestamp)
@@ -41,6 +42,10 @@ function formatClock(timestamp: number) {
 function goRiding() {
   uni.navigateTo({ url: "/pages/riding/index" })
 }
+
+onShow(() => {
+  void refreshAccount()
+})
 </script>
 
 <style scoped>

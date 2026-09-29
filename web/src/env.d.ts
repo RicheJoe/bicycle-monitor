@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_AMAP_KEY: string
+  readonly VITE_API_BASE: string
 }
 
 declare module '*.vue' {

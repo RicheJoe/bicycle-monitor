@@ -1,7 +1,5 @@
 import { reactive } from "vue"
-
-const RIDE_KEY = "bike-active-ride"
-const ORDERS_KEY = "bike-orders"
+import { fetchCurrentRide, fetchMe, fetchOrders, loginDev, loginWechat, saveToken, type RideDto } from "../utils/api"
 
 export interface Ride {
   id: string
@@ -30,68 +28,69 @@ export type LocateMode = "gps" | "inside" | "outside" | "poor"
 export const session = reactive({
   ride: null as Ride | null,
   orders: [] as OrderRecord[],
+  nickname: "骑行用户",
+  phone: "",
   gps: null as Fix | null,
   gpsAt: 0,
   locating: false,
   locateError: "",
+  accountError: "",
 })
 
-export function hydrateRide() {
-  const raw = uni.getStorageSync(RIDE_KEY) as string | Ride | ""
-  if (raw) session.ride = typeof raw === "string" ? (JSON.parse(raw) as Ride) : raw
-  hydrateOrders()
-}
-
-function seedOrders(): OrderRecord[] {
-  const hour = 60 * 60 * 1000
-  const ended = Date.now() - 26 * hour
-  return [
-    {
-      id: "R2026092601",
-      bikeCode: "BK2P9L",
-      startedAt: ended - 18 * 60 * 1000,
-      endedAt: ended,
-      fee: 2,
-      parkingName: "东北还车点",
-    },
-    {
-      id: "R2026092502",
-      bikeCode: "BK7Q1C",
-      startedAt: ended - 30 * hour,
-      endedAt: ended - 30 * hour + 12 * 60 * 1000,
-      fee: 1.5,
-      parkingName: "脚下还车点",
-    },
-  ]
-}
-
-export function hydrateOrders() {
-  const raw = uni.getStorageSync(ORDERS_KEY) as string | OrderRecord[] | ""
-  if (!raw) {
-    session.orders = seedOrders()
-    uni.setStorageSync(ORDERS_KEY, JSON.stringify(session.orders))
+function adopt(ride: RideDto | null) {
+  if (!ride) {
+    session.ride = null
     return
   }
-  session.orders = typeof raw === "string" ? (JSON.parse(raw) as OrderRecord[]) : raw
-}
-
-export function recordOrder(order: OrderRecord) {
-  session.orders = [order, ...session.orders.filter((item) => item.id !== order.id)]
-  uni.setStorageSync(ORDERS_KEY, JSON.stringify(session.orders))
-}
-
-export function startRide(bikeCode: string) {
   session.ride = {
-    id: `R${Date.now()}`,
-    bikeCode,
-    startedAt: Date.now(),
+    id: ride.id,
+    bikeCode: ride.bikeCode,
+    startedAt: ride.startedAt ?? Date.now(),
   }
-  uni.setStorageSync(RIDE_KEY, JSON.stringify(session.ride))
+}
+
+async function login() {
+  // #ifdef H5
+  const dev = await loginDev()
+  saveToken(dev.token)
+  return
+  // #endif
+  // #ifndef H5
+  try {
+    const loginResult = await uni.login({ provider: "weixin" })
+    const wechat = await loginWechat(loginResult.code)
+    saveToken(wechat.token)
+  } catch {
+    const dev = await loginDev()
+    saveToken(dev.token)
+  }
+  // #endif
+}
+
+export async function refreshAccount() {
+  const [me, current, orders] = await Promise.all([fetchMe(), fetchCurrentRide(), fetchOrders()])
+  session.nickname = me.nickname
+  session.phone = me.phone || ""
+  adopt(current.ride)
+  session.orders = orders.orders
+  session.accountError = ""
+}
+
+export async function ensureSession() {
+  try {
+    await login()
+    await refreshAccount()
+  } catch (error) {
+    session.accountError = error instanceof Error ? error.message : "登录失败"
+  }
+}
+
+export function setRide(ride: Ride) {
+  session.ride = ride
 }
 
 export function clearRide() {
   session.ride = null
-  uni.removeStorageSync(RIDE_KEY)
 }
 
 export function applyGps(fix: Fix) {

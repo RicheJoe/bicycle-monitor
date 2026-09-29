@@ -1,69 +1,35 @@
 import { reactive } from "vue"
 import type { Bike, ParkingPoint } from "./mock"
-import { bikeSpots, fixedAnchor, parkingSpots } from "./places"
-import { offsetMeters } from "../utils/geo"
+import { fetchNearbyBikes, fetchNearbyParking } from "../utils/api"
 
-const origin = reactive({
-  latitude: 0,
-  longitude: 0,
+export const catalog = reactive({
+  bikes: [] as Bike[],
+  parking: [] as ParkingPoint[],
   ready: false,
+  error: "",
 })
 
+export function nearbyError() {
+  return catalog.error
+}
+
 export function placesReady() {
-  return Boolean(fixedAnchor) || origin.ready
+  return catalog.ready
 }
 
 export function placesKey() {
-  if (fixedAnchor) return `fixed:${fixedAnchor.latitude},${fixedAnchor.longitude}`
-  return origin.ready ? `${origin.latitude.toFixed(5)},${origin.longitude.toFixed(5)}` : ""
-}
-
-/** 第一次拿到可用定位后固定原点，避免车辆跟着定位漂移。 */
-export function lockOrigin(fix: { latitude: number; longitude: number; accuracy: number }) {
-  if (fixedAnchor) {
-    origin.latitude = fixedAnchor.latitude
-    origin.longitude = fixedAnchor.longitude
-    origin.ready = true
-    return
-  }
-  if (origin.ready) return
-  if (!fix.latitude || !fix.longitude || fix.accuracy > 300) return
-  origin.latitude = fix.latitude
-  origin.longitude = fix.longitude
-  origin.ready = true
-}
-
-function resolvePoint(spot: { east: number; north: number; latitude?: number; longitude?: number }) {
-  if (typeof spot.latitude === "number" && typeof spot.longitude === "number") {
-    return { latitude: spot.latitude, longitude: spot.longitude }
-  }
-  const anchor = fixedAnchor || (origin.ready ? origin : null)
-  if (!anchor) return null
-  return offsetMeters(anchor, spot.east, spot.north)
+  if (!catalog.ready) return ""
+  const bikes = catalog.bikes.map((bike) => bike.code).join(",")
+  const parks = catalog.parking.map((spot) => `${spot.code}:${spot.latitude.toFixed(5)}`).join(",")
+  return `${bikes}|${parks}`
 }
 
 export function listBikes(): Bike[] {
-  return bikeSpots.flatMap((spot) => {
-    const point = resolvePoint(spot)
-    if (!point) return []
-    return [{ code: spot.code, battery: spot.battery, ...point }]
-  })
+  return catalog.bikes
 }
 
 export function listParking(): ParkingPoint[] {
-  return parkingSpots.flatMap((spot) => {
-    const point = resolvePoint(spot)
-    if (!point) return []
-    return [
-      {
-        code: spot.code,
-        name: spot.name,
-        radius: spot.radius,
-        enabled: spot.enabled,
-        ...point,
-      },
-    ]
-  })
+  return catalog.parking
 }
 
 export function findBike(code: string) {
@@ -72,4 +38,26 @@ export function findBike(code: string) {
 
 export function findParking(code: string) {
   return listParking().find((item) => item.code === code)
+}
+
+let loading: Promise<void> | null = null
+
+export function refreshNearby(fix: { latitude: number; longitude: number }) {
+  if (!fix.latitude || !fix.longitude) return Promise.resolve()
+  loading = (async () => {
+    try {
+      const [bikes, parking] = await Promise.all([
+        fetchNearbyBikes(fix.latitude, fix.longitude),
+        fetchNearbyParking(fix.latitude, fix.longitude),
+      ])
+      catalog.bikes = bikes.bikes
+      catalog.parking = parking.points
+      catalog.error = ""
+      catalog.ready = true
+    } catch (error) {
+      catalog.error = error instanceof Error ? error.message : "附近车辆加载失败"
+      catalog.ready = true
+    }
+  })()
+  return loading
 }
